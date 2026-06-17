@@ -42,19 +42,19 @@ export const GoTo: React.FC<GoToProps> = ({ total, onJumpToWord, onJumpToNumber 
         <div className="w-full mt-6">
             <div className="flex flex-col sm:flex-row gap-3">
                 <form onSubmit={submitWord} className="flex-1 relative">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-indigo-400 pointer-events-none" />
                     <input
                         type="text"
                         value={word}
                         onChange={(e) => { setWord(e.target.value); setError(''); }}
                         placeholder="Go to word (norsk or english)…"
                         aria-label="Go to word"
-                        className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full pl-11 pr-3 py-3 rounded-2xl bg-white/80 backdrop-blur-md border-2 border-transparent text-gray-800 placeholder-gray-400 shadow-md focus:outline-none focus:border-indigo-400 focus:bg-white transition-all"
                     />
                 </form>
 
                 <form onSubmit={submitNum} className="relative sm:w-40">
-                    <Hash size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                    <Hash size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-fuchsia-400 pointer-events-none" />
                     <input
                         type="number"
                         min={1}
@@ -63,7 +63,7 @@ export const GoTo: React.FC<GoToProps> = ({ total, onJumpToWord, onJumpToNumber 
                         onChange={(e) => { setNum(e.target.value); setError(''); }}
                         placeholder={`1–${total}`}
                         aria-label="Go to card number"
-                        className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-800 placeholder-gray-400 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                        className="w-full pl-10 pr-3 py-3 rounded-2xl bg-white/80 backdrop-blur-md border-2 border-transparent text-gray-800 placeholder-gray-400 shadow-md focus:outline-none focus:border-fuchsia-400 focus:bg-white transition-all"
                     />
                 </form>
             </div>

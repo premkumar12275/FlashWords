@@ -38,17 +38,19 @@ function App() {
   }, [handleNext, handlePrev, handleFlip]);
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-50 to-blue-100 flex flex-col items-center justify-center p-6 relative overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-indigo-100 via-rose-50 to-amber-100 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Background decoration */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-purple-200/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-      <div className="absolute top-0 right-0 w-96 h-96 bg-yellow-200/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-96 h-96 bg-pink-200/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+      <div className="absolute top-0 left-0 w-96 h-96 bg-indigo-300/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
+      <div className="absolute top-10 right-0 w-96 h-96 bg-fuchsia-300/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+      <div className="absolute -bottom-8 left-20 w-96 h-96 bg-amber-300/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+      <div className="absolute bottom-0 right-10 w-80 h-80 bg-emerald-300/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
 
       <header className="mb-10 text-center z-10">
-        <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight sm:text-5xl mb-2">
-          Norsk <span className="text-indigo-600">Flashcards</span>
+        <div className="text-4xl mb-2 animate-float">🇳🇴</div>
+        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl mb-2">
+          <span className="bg-gradient-to-r from-indigo-600 via-fuchsia-600 to-amber-500 bg-clip-text text-transparent">Norsk Flashcards</span>
         </h1>
-        <p className="text-lg text-gray-600">Master beginner Norwegian vocabulary</p>
+        <p className="text-lg text-gray-600 font-medium">Lær norsk, ett kort om gangen ✨</p>
       </header>
 
       <main className="z-10 w-full max-w-md flex flex-col items-center">
