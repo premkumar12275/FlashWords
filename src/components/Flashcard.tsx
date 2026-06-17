@@ -25,13 +25,15 @@ export const Flashcard: React.FC<FlashcardProps> = ({ card, isFlipped, onFlip })
         </div>
 
         {/* Back */}
-        <div 
+        <div
           className="absolute inset-0 w-full h-full bg-indigo-600 rounded-2xl shadow-xl flex flex-col items-center justify-center text-white backface-hidden"
           style={{ transform: 'rotateY(180deg)' }}
         >
           <div className="text-4xl font-bold mb-2">{card.englishMeaning}</div>
-          <div className="text-indigo-200 italic mb-6">{card.partOfSpeech} • {card.gender}</div>
-          
+          <div className="text-indigo-200 italic mb-6">
+            {card.partOfSpeech}{card.gender ? ` • ${card.gender}` : ''}
+          </div>
+
           <div className="px-8 text-center space-y-2">
             <p className="text-lg font-medium">"{card.exampleNorwegian}"</p>
             <p className="text-sm text-indigo-300">{card.exampleEnglish}</p>

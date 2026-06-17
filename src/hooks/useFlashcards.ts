@@ -1,8 +1,16 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { Flashcard } from '../types';
 
+export interface SearchResult {
+    found: boolean;
+    index: number;
+}
+
 export const useFlashcards = () => {
+    // The deck currently shown (may be shuffled). originalDeck keeps load order
+    // so toggling shuffle off restores the original sequence without re-fetching.
     const [deck, setDeck] = useState<Flashcard[]>([]);
+    const originalDeck = useRef<Flashcard[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [isFlipped, setIsFlipped] = useState(false);
     const [isShuffled, setIsShuffled] = useState(false);
@@ -11,7 +19,8 @@ export const useFlashcards = () => {
     useEffect(() => {
         fetch('/flashcards.json')
             .then(res => res.json())
-            .then(data => {
+            .then((data: Flashcard[]) => {
+                originalDeck.current = data;
                 setDeck(data);
                 setLoading(false);
             })
@@ -20,12 +29,19 @@ export const useFlashcards = () => {
 
     const currentCard = deck[currentIndex];
 
+    const goToIndex = useCallback((index: number) => {
+        if (deck.length === 0) return;
+        const clamped = Math.max(0, Math.min(index, deck.length - 1));
+        setIsFlipped(false);
+        setCurrentIndex(clamped);
+    }, [deck.length]);
+
     const handleNext = useCallback(() => {
         if (deck.length === 0) return;
         setIsFlipped(false);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev + 1) % deck.length);
-        }, 200);
+        }, 150);
     }, [deck.length]);
 
     const handlePrev = useCallback(() => {
@@ -33,38 +49,63 @@ export const useFlashcards = () => {
         setIsFlipped(false);
         setTimeout(() => {
             setCurrentIndex((prev) => (prev - 1 + deck.length) % deck.length);
-        }, 200);
+        }, 150);
     }, [deck.length]);
 
     const handleFlip = useCallback(() => {
         setIsFlipped((prev) => !prev);
     }, []);
 
-    const toggleShuffle = useCallback(() => {
-        if (deck.length === 0) return;
-        setIsFlipped(false);
-        setIsShuffled((prev) => !prev);
-    }, [deck.length]);
+    // Jump to a card by its (1-based) position.
+    const jumpToNumber = useCallback((oneBased: number): SearchResult => {
+        if (deck.length === 0 || Number.isNaN(oneBased)) return { found: false, index: currentIndex };
+        const index = oneBased - 1;
+        if (index < 0 || index >= deck.length) return { found: false, index: currentIndex };
+        goToIndex(index);
+        return { found: true, index };
+    }, [deck, currentIndex, goToIndex]);
 
-    // Effect to handle shuffling
-    useEffect(() => {
-        if (deck.length === 0) return;
+    // Jump to a card by typing a Norwegian or English word.
+    // Prefers an exact match (ignoring the "å " verb prefix), else first substring match.
+    const jumpToWord = useCallback((query: string): SearchResult => {
+        const q = query.trim().toLowerCase();
+        if (!q || deck.length === 0) return { found: false, index: currentIndex };
 
-        if (isShuffled) {
-            const shuffled = [...deck].sort(() => Math.random() - 0.5);
-            setDeck(shuffled);
-        } else {
-            // If we want to un-shuffle, we might need the original order. 
-            // For now, re-fetching or keeping a separate ref would be ideal, 
-            // but simple toggle off can just reload or keep current.
-            // Let's re-fetch to be safe and simple for now, or just not support returning to exact original order without a ref.
-            // Improvement: Keep originalDeck in a ref.
-            fetch('/flashcards.json')
-                .then(res => res.json())
-                .then(data => setDeck(data));
+        const norm = (s: string) => s.toLowerCase().replace(/^å\s+/, '').replace(/^to\s+/, '');
+
+        let index = deck.findIndex(
+            c => norm(c.norwegianWord) === q || norm(c.englishMeaning) === q
+        );
+        if (index === -1) {
+            index = deck.findIndex(
+                c => c.norwegianWord.toLowerCase().includes(q) ||
+                     c.englishMeaning.toLowerCase().includes(q)
+            );
         }
+        if (index === -1) return { found: false, index: currentIndex };
+        goToIndex(index);
+        return { found: true, index };
+    }, [deck, currentIndex, goToIndex]);
+
+    const toggleShuffle = useCallback(() => {
+        if (originalDeck.current.length === 0) return;
+        setIsFlipped(false);
         setCurrentIndex(0);
-    }, [isShuffled]);
+        setIsShuffled((prev) => {
+            const next = !prev;
+            if (next) {
+                const shuffled = [...originalDeck.current];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                setDeck(shuffled);
+            } else {
+                setDeck(originalDeck.current);
+            }
+            return next;
+        });
+    }, []);
 
     return {
         currentCard,
@@ -76,6 +117,8 @@ export const useFlashcards = () => {
         handleNext,
         handlePrev,
         handleFlip,
-        toggleShuffle
+        toggleShuffle,
+        jumpToNumber,
+        jumpToWord,
     };
 };
