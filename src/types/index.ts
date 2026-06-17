@@ -8,6 +8,5 @@ export interface Flashcard {
     gender?: 'en' | 'ei' | 'et';
     exampleNorwegian: string;
     exampleEnglish: string;
-    pronunciation?: string;
     difficultyLevel: DifficultyLevel;
 }
