@@ -1,25 +1,11 @@
-const colors = require("tailwindcss/colors");
-
+/** @type {import('tailwindcss').Config} */
 module.exports = {
-  purge: [
+  content: [
     "./index.html",
-    "./src/**/*.{vue,js,ts,jsx,tsx}",
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
-  darkMode: false,
   theme: {
     extend: {
-      colors: {
-        sky: colors.sky,
-        emerald: colors.emerald,
-        amber: colors.amber,
-        orange: colors.orange,
-        fuchsia: colors.fuchsia,
-        rose: colors.rose,
-        teal: colors.teal,
-        cyan: colors.cyan,
-        violet: colors.violet,
-        lime: colors.lime,
-      },
       animation: {
         blob: "blob 7s infinite",
         "pop-in": "pop-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -48,9 +34,6 @@ module.exports = {
         },
       },
     },
-  },
-  variants: {
-    extend: {},
   },
   plugins: [],
 }

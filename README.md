@@ -3,18 +3,22 @@
 A modern, responsive web application for learning Norwegian Bokmål vocabulary. Built with React, TypeScript, and Tailwind CSS.
 
 ## ✨ Features
-- **1000+ Words**: Comprehensive dataset covering nouns, verbs, adjectives, and phrases.
-- **Interactive UI**: Smooth 3D flip animations and glassmorphism design.
-- **Study Modes**: 
-  - Standard navigation to learn sequentially.
-  - **Shuffle Mode** for randomizing practice.
-- **Mobile First**: Fully responsive design for learning on the go.
-- **Data Generation**: Python scripts included to regenerate or expand vocabulary.
+- **1000+ Curated Words**: Hand-curated dataset (nouns with correct genders, verbs, adjectives, phrases) with real example sentences.
+- **Progress That Sticks**: Your position, known words, and study settings persist across sessions (localStorage).
+- **Known-Word Tracking**: Mark words as known (button or `K` key) and optionally hide them while practicing.
+- **Study Modes**:
+  - Both directions: Norwegian → English and English → Norwegian.
+  - Filter by category (only verbs, only phrases, …).
+  - **Shuffle Mode** for randomized practice.
+- **Go-To Navigation**: Jump to any card by word (Norwegian or English) or card number; arrow keys + Space keyboard controls.
+- **Playful UI**: Category color-coded cards, 3D flip animations, gender chips, difficulty badges.
+- **Data Generation**: Python script included to regenerate or expand vocabulary.
 
 ## 🛠️ Tech Stack
-- **Frontend**: React 17, TypeScript, Vite
-- **Styling**: Tailwind CSS, Framer Motion
+- **Frontend**: React 18, TypeScript 5, Vite 7
+- **Styling**: Tailwind CSS 3, Framer Motion
 - **Icons**: Lucide React
+- **Testing**: Vitest (data-integrity smoke tests — `npm test`)
 - **Containerization**: Docker, Nginx
 
 ## 🚀 Getting Started
@@ -57,8 +61,10 @@ The project includes a production-ready `Dockerfile` and `nginx.conf`, making it
 The flashcard data is stored in `public/flashcards.json`. You can modify it directly or regenerate it using the included Python script:
 
 ```bash
-python3 scripts/generate_vocab.py > public/flashcards.json
+python scripts/generate_vocab.py
 ```
+
+The script writes `public/flashcards.json` itself and keeps card ids stable across runs. Run `npm test` afterwards to validate the data.
 
 ## 📄 License
 This project is open source.
