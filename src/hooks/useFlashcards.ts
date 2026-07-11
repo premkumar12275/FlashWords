@@ -186,6 +186,8 @@ export const useFlashcards = () => {
     }, [deck, currentIndex, goToIndex]);
 
     return {
+        allCards,
+        knownIds,
         currentCard,
         currentIndex,
         totalCards: deck.length,
