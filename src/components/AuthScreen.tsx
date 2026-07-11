@@ -107,10 +107,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSignIn, onSignUp, onGu
                     onClick={onGuest}
                     className="text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                    Continue as guest →
+                    Try it as a guest →
                 </button>
                 <p className="mt-1 text-xs text-gray-400">
-                    Guest progress stays in this browser only.
+                    Everything works, but guest progress is not saved.
                 </p>
             </div>
         </div>

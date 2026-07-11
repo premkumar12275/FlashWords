@@ -4,7 +4,7 @@ A modern, responsive web application for learning Norwegian Bokmål vocabulary. 
 
 ## ✨ Features
 - **1000+ Curated Words**: Hand-curated dataset (nouns with correct genders, verbs, adjectives, phrases) with real example sentences.
-- **User Accounts & Cloud Sync** (optional): Email + password login via Supabase — each user gets their own progress, synced across devices. Without Supabase configured the app runs in guest mode with local-only progress.
+- **User Accounts & Cloud Sync** (optional): Email + password login via Supabase — each user gets their own progress, synced across devices. Guests can use the full app without an account, but their progress isn't saved. (Without Supabase configured at all, the app persists progress locally like a classic offline app.)
 - **Spaced Repetition**: A Leitner-box Review mode schedules words at growing intervals; wrong answers come back until you get them right.
 - **Progress That Sticks**: Your position, known words, Leitner boxes, and study settings persist across sessions.
 - **Known-Word Tracking**: Mark words as known (button or `K` key) and optionally hide them while practicing.

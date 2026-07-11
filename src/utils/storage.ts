@@ -8,6 +8,20 @@
 let namespace = '';
 let writeListener: ((key: string) => void) | null = null;
 
+// Ephemeral mode backs loadJSON/saveJSON with an in-memory map instead of
+// localStorage: the app works normally, but nothing survives a reload.
+// Used for guest sessions when accounts are available — sign in to save.
+let ephemeral = false;
+const memory = new Map<string, string>();
+
+export const setStorageEphemeral = (on: boolean): void => {
+    if (on === ephemeral) return; // idempotent — repeated calls must not wipe the session
+    ephemeral = on;
+    memory.clear(); // fresh slate on every enter/leave
+};
+
+export const isStorageEphemeral = (): boolean => ephemeral;
+
 export const setStorageNamespace = (userId: string): void => {
     namespace = userId ? `u:${userId}:` : '';
 };
@@ -24,7 +38,9 @@ const nsKey = (key: string): string => `${namespace}${key}`;
 
 export const loadJSON = <T,>(key: string, fallback: T): T => {
     try {
-        const raw = localStorage.getItem(nsKey(key));
+        const raw = ephemeral
+            ? memory.get(nsKey(key)) ?? null
+            : localStorage.getItem(nsKey(key));
         return raw === null ? fallback : (JSON.parse(raw) as T);
     } catch {
         return fallback;
@@ -33,7 +49,11 @@ export const loadJSON = <T,>(key: string, fallback: T): T => {
 
 export const saveJSON = (key: string, value: unknown): void => {
     try {
-        localStorage.setItem(nsKey(key), JSON.stringify(value));
+        if (ephemeral) {
+            memory.set(nsKey(key), JSON.stringify(value));
+        } else {
+            localStorage.setItem(nsKey(key), JSON.stringify(value));
+        }
     } catch {
         // ignore — persistence is best-effort
     }

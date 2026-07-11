@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { collectProgress, applyProgress, PROGRESS_KEYS } from '../src/utils/progressSync';
-import { setStorageNamespace, loadJSON, saveJSON, onStorageWrite, readRaw } from '../src/utils/storage';
+import {
+    setStorageNamespace, setStorageEphemeral, loadJSON, saveJSON, onStorageWrite, readRaw,
+} from '../src/utils/storage';
 
 // Minimal localStorage shim for the Node test environment.
 const store = new Map<string, string>();
@@ -13,6 +15,62 @@ const store = new Map<string, string>();
 beforeEach(() => {
     store.clear();
     setStorageNamespace('');
+    setStorageEphemeral(false);
+});
+
+describe('ephemeral (guest) storage', () => {
+    it('works fully in memory without touching localStorage', () => {
+        setStorageEphemeral(true);
+        saveJSON('flashwords:known:v1', ['hus']);
+        expect(loadJSON('flashwords:known:v1', [])).toEqual(['hus']); // app works
+        expect(store.size).toBe(0);                                    // nothing persisted
+    });
+
+    it('starts with a fresh slate even if localStorage has old progress', () => {
+        saveJSON('flashwords:known:v1', ['old-word']); // persisted earlier
+        setStorageEphemeral(true);
+        expect(loadJSON('flashwords:known:v1', [])).toEqual([]);
+    });
+
+    it('leaving guest mode clears the memory and restores persistence', () => {
+        setStorageEphemeral(true);
+        saveJSON('flashwords:known:v1', ['temp']);
+        setStorageEphemeral(false);
+        expect(loadJSON('flashwords:known:v1', [])).toEqual([]); // guest data gone
+        saveJSON('flashwords:known:v1', ['kept']);
+        expect(store.get('flashwords:known:v1')).toBe('["kept"]');
+    });
+
+    it('re-entering guest mode does not leak the previous guest session', () => {
+        setStorageEphemeral(true);
+        saveJSON('flashwords:mode:v1', 'review');
+        setStorageEphemeral(false);
+        setStorageEphemeral(true);
+        expect(loadJSON('flashwords:mode:v1', 'browse')).toBe('browse');
+    });
+
+    it('repeated enable is a no-op and survives a StrictMode mount cycle', () => {
+        // React StrictMode: initializer(true) -> effect(true) -> cleanup(false) -> effect(true)
+        setStorageEphemeral(true);
+        setStorageEphemeral(true); // must NOT wipe the session
+        saveJSON('flashwords:known:v1', ['mid-render-write']);
+        setStorageEphemeral(true);
+        expect(loadJSON('flashwords:known:v1', [])).toEqual(['mid-render-write']);
+        setStorageEphemeral(false);
+        setStorageEphemeral(true);
+        // ended up ephemeral: writes still don't reach localStorage
+        saveJSON('flashwords:leitner:v1', { x: 1 });
+        expect(store.has('flashwords:leitner:v1')).toBe(false);
+    });
+
+    it('still notifies the write listener (harmless — sync is off for guests)', () => {
+        const written: string[] = [];
+        const unsub = onStorageWrite(k => written.push(k));
+        setStorageEphemeral(true);
+        saveJSON('flashwords:mode:v1', 'review');
+        unsub();
+        expect(written).toEqual(['flashwords:mode:v1']);
+    });
 });
 
 describe('storage namespacing', () => {

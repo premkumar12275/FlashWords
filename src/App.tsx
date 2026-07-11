@@ -5,7 +5,7 @@ import { StudyApp } from './StudyApp';
 import { AuthScreen } from './components/AuthScreen';
 import { useAuth } from './hooks/useAuth';
 import { supabase } from './lib/supabase';
-import { setStorageNamespace, onStorageWrite, readRaw, writeRaw } from './utils/storage';
+import { setStorageNamespace, setStorageEphemeral, onStorageWrite, readRaw, writeRaw } from './utils/storage';
 import { pullProgress, pushProgress } from './utils/progressSync';
 
 // Device-level preference (deliberately not part of synced progress).
@@ -29,6 +29,7 @@ const AccountSync: React.FC<{ session: Session; children: React.ReactNode }> = (
     const prefix = `u:${userId}:`;
     let cancelled = false;
 
+    setStorageEphemeral(false);
     setStorageNamespace(userId);
     (async () => {
       if (supabase) await pullProgress(supabase, userId, prefix);
@@ -51,6 +52,21 @@ const AccountSync: React.FC<{ session: Session; children: React.ReactNode }> = (
   }, [session.user.id]);
 
   if (!ready) return <Spinner label="Syncing your progress..." />;
+  return <>{children}</>;
+};
+
+// Guest sessions (accounts available, user chose not to sign in) run on
+// in-memory storage: the whole app works, nothing survives a reload.
+// useState (not useEffect) so the flag is set before children's hooks
+// read storage during their first render. The effect body must RE-ENABLE
+// the flag: StrictMode's simulated unmount runs the cleanup, and without
+// re-enabling, guest mode would silently fall back to persistent storage.
+const GuestSession: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  useState(() => setStorageEphemeral(true));
+  useEffect(() => {
+    setStorageEphemeral(true);
+    return () => setStorageEphemeral(false);
+  }, []);
   return <>{children}</>;
 };
 
@@ -98,13 +114,18 @@ function App() {
           </button>
         </div>
       ) : guest && configured ? (
-        <button
-          onClick={leaveGuest}
-          className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/70 backdrop-blur-md px-4 py-2 rounded-full text-sm font-bold text-gray-600 shadow-md border border-white/60 hover:-translate-y-0.5 transition-all"
-          title="Sign in to sync your progress across devices"
-        >
-          <LogIn size={15} className="text-indigo-500" /> Sign in
-        </button>
+        <div className="absolute top-6 left-6 z-20 flex items-center gap-2 bg-white/70 backdrop-blur-md pl-4 pr-2 py-1.5 rounded-full text-sm font-bold text-gray-600 shadow-md border border-white/60">
+          <span title="You can use everything, but progress is lost when you leave">
+            👻 Guest — progress not saved
+          </span>
+          <button
+            onClick={leaveGuest}
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-br from-indigo-600 to-fuchsia-600 text-white text-xs font-bold shadow hover:-translate-y-0.5 transition-all"
+            title="Sign in to keep your progress"
+          >
+            <LogIn size={13} /> Sign in
+          </button>
+        </div>
       ) : !configured ? (
         <div
           className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/50 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-gray-400 shadow-sm border border-white/60"
@@ -131,8 +152,12 @@ function App() {
           <AccountSync session={session}>
             <StudyApp key={session.user.id} />
           </AccountSync>
+        ) : configured ? (
+          <GuestSession>
+            <StudyApp key="guest-ephemeral" />
+          </GuestSession>
         ) : (
-          <StudyApp key="guest" />
+          <StudyApp key="local" />
         )}
       </main>
     </div>
