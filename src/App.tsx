@@ -1,70 +1,78 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useFlashcards } from './hooks/useFlashcards';
-import { useReview } from './hooks/useReview';
-import { Flashcard } from './components/Flashcard';
-import { Controls } from './components/Controls';
-import { ProgressIndicator } from './components/ProgressIndicator';
-import { GoTo } from './components/GoTo';
-import { StudyBar } from './components/StudyBar';
-import { ModeTabs, Mode } from './components/ModeTabs';
-import { ReviewSession } from './components/ReviewSession';
-import { loadJSON, saveJSON } from './utils/storage';
+import React, { useEffect, useState, useRef } from 'react';
+import { Session } from '@supabase/supabase-js';
+import { LogOut, LogIn, Loader2, CloudOff } from 'lucide-react';
+import { StudyApp } from './StudyApp';
+import { AuthScreen } from './components/AuthScreen';
+import { useAuth } from './hooks/useAuth';
+import { supabase } from './lib/supabase';
+import { setStorageNamespace, onStorageWrite, readRaw, writeRaw } from './utils/storage';
+import { pullProgress, pushProgress } from './utils/progressSync';
 
-const MODE_KEY = 'flashwords:mode:v1';
+// Device-level preference (deliberately not part of synced progress).
+const AUTH_PREF_KEY = 'flashwords:authpref:v1';
+
+const Spinner: React.FC<{ label: string }> = ({ label }) => (
+  <div className="flex items-center gap-3 text-xl text-gray-500 font-medium">
+    <Loader2 size={22} className="animate-spin" /> {label}
+  </div>
+);
+
+// Sets the storage namespace for the signed-in user, hydrates local progress
+// from the cloud (or migrates guest progress on first login), then mirrors
+// every later write back up, debounced.
+const AccountSync: React.FC<{ session: Session; children: React.ReactNode }> = ({ session, children }) => {
+  const [ready, setReady] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
+
+  useEffect(() => {
+    const userId = session.user.id;
+    const prefix = `u:${userId}:`;
+    let cancelled = false;
+
+    setStorageNamespace(userId);
+    (async () => {
+      if (supabase) await pullProgress(supabase, userId, prefix);
+      if (!cancelled) setReady(true);
+    })();
+
+    const unsubscribe = onStorageWrite(() => {
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => {
+        if (supabase) pushProgress(supabase, userId, prefix);
+      }, 1200);
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      clearTimeout(timer.current);
+      setStorageNamespace('');
+    };
+  }, [session.user.id]);
+
+  if (!ready) return <Spinner label="Syncing your progress..." />;
+  return <>{children}</>;
+};
 
 function App() {
-  const {
-    allCards,
-    knownIds,
-    currentCard,
-    currentIndex,
-    totalCards,
-    totalAll,
-    knownCount,
-    isCurrentKnown,
-    categories,
-    settings,
-    updateSettings,
-    isFlipped,
-    isShuffled,
-    loading,
-    handleFlip,
-    handleNext,
-    handlePrev,
-    toggleShuffle,
-    toggleKnown,
-    jumpToNumber,
-    jumpToWord,
-  } = useFlashcards();
+  const { configured, session, loading, signIn, signUp, signOut } = useAuth();
+  const [guest, setGuest] = useState(() => readRaw(AUTH_PREF_KEY) === 'guest');
 
-  const review = useReview(allCards, knownIds);
+  const chooseGuest = () => {
+    writeRaw(AUTH_PREF_KEY, 'guest');
+    setGuest(true);
+  };
+  const leaveGuest = () => {
+    writeRaw(AUTH_PREF_KEY, '');
+    setGuest(false);
+  };
+  const handleSignOut = () => {
+    writeRaw(AUTH_PREF_KEY, '');
+    setGuest(false);
+    signOut();
+  };
 
-  const [mode, setMode] = useState<Mode>(() => loadJSON<Mode>(MODE_KEY, 'browse'));
-  const changeMode = useCallback((m: Mode) => {
-    setMode(m);
-    saveJSON(MODE_KEY, m);
-  }, []);
-
-  // Browse-mode keys. Review mode registers its own handler inside
-  // ReviewSession, so bail out here to avoid double-handling.
-  useEffect(() => {
-    if (mode !== 'browse') return;
-    const onKey = (e: KeyboardEvent) => {
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
-      if (e.key === 'ArrowRight') handleNext();
-      else if (e.key === 'ArrowLeft') handlePrev();
-      else if (e.key === 'k' || e.key === 'K') toggleKnown();
-      else if (e.key === ' ' || e.key === 'Enter') {
-        e.preventDefault();
-        handleFlip();
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [mode, handleNext, handlePrev, handleFlip, toggleKnown]);
-
-  const emptyDeck = !loading && totalCards === 0;
+  const showAuth = configured && !session && !guest && !loading;
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-indigo-100 via-rose-50 to-amber-100 flex flex-col items-center justify-center p-6 relative overflow-hidden">
@@ -73,6 +81,38 @@ function App() {
       <div className="absolute top-10 right-0 w-96 h-96 bg-fuchsia-300/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
       <div className="absolute -bottom-8 left-20 w-96 h-96 bg-amber-300/50 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
       <div className="absolute bottom-0 right-10 w-80 h-80 bg-emerald-300/40 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
+
+      {/* account chip */}
+      {session ? (
+        <div className="absolute top-6 left-6 z-20 flex items-center gap-2 bg-white/70 backdrop-blur-md pl-4 pr-2 py-1.5 rounded-full text-sm font-bold text-gray-700 shadow-md border border-white/60">
+          <span className="max-w-[10rem] truncate" title={session.user.email ?? ''}>
+            👤 {session.user.email}
+          </span>
+          <button
+            onClick={handleSignOut}
+            className="p-1.5 rounded-full text-gray-400 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      ) : guest && configured ? (
+        <button
+          onClick={leaveGuest}
+          className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/70 backdrop-blur-md px-4 py-2 rounded-full text-sm font-bold text-gray-600 shadow-md border border-white/60 hover:-translate-y-0.5 transition-all"
+          title="Sign in to sync your progress across devices"
+        >
+          <LogIn size={15} className="text-indigo-500" /> Sign in
+        </button>
+      ) : !configured ? (
+        <div
+          className="absolute top-6 left-6 z-20 inline-flex items-center gap-2 bg-white/50 backdrop-blur-md px-4 py-2 rounded-full text-xs font-bold text-gray-400 shadow-sm border border-white/60"
+          title="Add Supabase keys to .env to enable accounts and cloud sync"
+        >
+          <CloudOff size={14} /> Local only
+        </div>
+      ) : null}
 
       <header className="mb-6 text-center z-10">
         <div className="text-4xl mb-2 animate-float">🇳🇴</div>
@@ -84,90 +124,17 @@ function App() {
 
       <main className="z-10 w-full max-w-md flex flex-col items-center">
         {loading ? (
-          <div className="text-xl text-gray-500 font-medium animate-pulse">Loading words...</div>
+          <Spinner label="Checking your session..." />
+        ) : showAuth ? (
+          <AuthScreen onSignIn={signIn} onSignUp={signUp} onGuest={chooseGuest} />
+        ) : session ? (
+          <AccountSync session={session}>
+            <StudyApp key={session.user.id} />
+          </AccountSync>
         ) : (
-          <>
-            <ModeTabs mode={mode} reviewBadge={review.remaining} onChange={changeMode} />
-
-            {mode === 'review' ? (
-              <ReviewSession
-                card={review.currentCard}
-                direction={settings.direction}
-                remaining={review.remaining}
-                sessionSize={review.sessionSize}
-                isFlipped={review.isFlipped}
-                onFlip={review.flip}
-                onGrade={review.gradeCard}
-                done={review.done}
-                stats={review.stats}
-                distribution={review.distribution}
-                onLearnMore={review.learnMore}
-              />
-            ) : (
-              <>
-                <ProgressIndicator
-                  currentIndex={currentIndex}
-                  total={totalCards}
-                  knownCount={knownCount}
-                  totalAll={totalAll}
-                />
-
-                <StudyBar settings={settings} categories={categories} onChange={updateSettings} />
-
-                {emptyDeck ? (
-                  <div className="w-full max-w-sm h-80 rounded-3xl bg-white/80 backdrop-blur-md shadow-2xl border border-white/60 flex flex-col items-center justify-center text-center px-8 animate-pop-in">
-                    <div className="text-6xl mb-4">🎉</div>
-                    <h2 className="text-2xl font-extrabold text-gray-800 mb-2">Gratulerer!</h2>
-                    <p className="text-gray-500 mb-6">
-                      You know every word in this selection. Change the filter — or unhide known words to review them.
-                    </p>
-                    <button
-                      onClick={() => updateSettings({ hideKnown: false })}
-                      className="px-5 py-2.5 rounded-2xl bg-gradient-to-br from-indigo-600 to-fuchsia-600 text-white font-bold shadow-lg hover:-translate-y-0.5 transition-all active:scale-95"
-                    >
-                      Show known words
-                    </button>
-                  </div>
-                ) : (
-                  currentCard && (
-                    <>
-                      <div className="w-full flex justify-center">
-                        <Flashcard
-                          card={currentCard}
-                          direction={settings.direction}
-                          isFlipped={isFlipped}
-                          onFlip={handleFlip}
-                        />
-                      </div>
-
-                      <Controls
-                        onNext={handleNext}
-                        onPrev={handlePrev}
-                        onShuffle={toggleShuffle}
-                        onToggleKnown={toggleKnown}
-                        isShuffled={isShuffled}
-                        isKnown={isCurrentKnown}
-                      />
-
-                      <GoTo
-                        total={totalCards}
-                        onJumpToWord={jumpToWord}
-                        onJumpToNumber={jumpToNumber}
-                      />
-                    </>
-                  )
-                )}
-              </>
-            )}
-          </>
+          <StudyApp key="guest" />
         )}
       </main>
-
-      <footer className="absolute bottom-4 text-gray-400 text-sm text-center px-4">
-        {mode === 'review'
-          ? 'Space to flip • 1 = again, 2 = got it'
-          : 'Space to flip • ← → to navigate • K to mark known'}
-      </footer>
     </div>
   );
 }
